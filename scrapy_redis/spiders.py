@@ -2,7 +2,7 @@ import connection
 
 from scrapy import signals
 from scrapy.exceptions import DontCloseSpider
-from scrapy.spider import Spider
+from scrapy.spiders import Spider
 
 
 class RedisMixin(object):
@@ -42,7 +42,7 @@ class RedisMixin(object):
         raise DontCloseSpider
 
     def item_scraped(self, *args, **kwargs):
-        """Avoids waiting for the spider to  idle before scheduling the next request"""
+        """Avoids waiting for the spider to idle before scheduling the next request"""
         self.schedule_next_request()
 
 
