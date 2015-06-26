@@ -3,7 +3,7 @@ import connection
 
 from scrapy.dupefilters import BaseDupeFilter
 from scrapy.utils.request import request_fingerprint
-
+import pyreBloom
 
 class RFPDupeFilter(BaseDupeFilter):
     """Redis-based request duplication filter"""
@@ -45,3 +45,29 @@ class RFPDupeFilter(BaseDupeFilter):
     def clear(self):
         """Clears fingerprints data"""
         self.server.delete(self.key)
+ 
+class RedisBloomDupeFilter(BaseDupeFilter):
+    """Redis backed bloomfilter duplication filter"""
+ 
+    def __init__(self, server, key):
+        self.filter = pyreBloom.pyreBloom(key, 10000000, 0.00001)
+ 
+    @classmethod
+    def from_settings(cls, settings):
+        server = connection.from_settings(settings)
+        key = "dupefilter:bloom:%s" % int(time.time())
+        return cls(server, key)
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls.from_settings(crawler.settings)
+ 
+    def request_seen(self, request):
+        fp = request.url
+        if fp in self.filter:
+            return True
+        self.filter.add(fp)
+ 
+    def close(self, reason):
+        pass
+

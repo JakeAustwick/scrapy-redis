@@ -1,7 +1,6 @@
 import connection
 
 from scrapy.utils.misc import load_object
-from scrapy_redis.dupefilter import RFPDupeFilter
 
 
 # default values
@@ -9,13 +8,14 @@ SCHEDULER_PERSIST = False
 QUEUE_KEY = '%(spider)s:requests'
 QUEUE_CLASS = 'scrapy_redis.queue.SpiderPriorityQueue'
 DUPEFILTER_KEY = '%(spider)s:dupefilter'
+DUPEFILTER_CLASS = 'scrapy_redis.dupefilter.RFPDupeFilter'
 IDLE_BEFORE_CLOSE = 0
 
 
 class Scheduler(object):
     """Redis-based scheduler"""
 
-    def __init__(self, server, persist, queue_key, queue_cls, dupefilter_key, idle_before_close):
+    def __init__(self, server, persist, queue_key, queue_cls, dupefilter_key, dupefilter_cls, idle_before_close):
         """Initialize scheduler.
 
         Parameters
@@ -32,6 +32,7 @@ class Scheduler(object):
         self.queue_key = queue_key
         self.queue_cls = queue_cls
         self.dupefilter_key = dupefilter_key
+        self.dupefilter_cls = dupefilter_cls
         self.idle_before_close = idle_before_close
         self.stats = None
 
@@ -44,9 +45,10 @@ class Scheduler(object):
         queue_key = settings.get('SCHEDULER_QUEUE_KEY', QUEUE_KEY)
         queue_cls = load_object(settings.get('SCHEDULER_QUEUE_CLASS', QUEUE_CLASS))
         dupefilter_key = settings.get('DUPEFILTER_KEY', DUPEFILTER_KEY)
+        dupefilter_cls = load_object(settings.get('DUPEFILTER_CLASS', DUPEFILTER_CLASS))
         idle_before_close = settings.get('SCHEDULER_IDLE_BEFORE_CLOSE', IDLE_BEFORE_CLOSE)
         server = connection.from_settings(settings)
-        return cls(server, persist, queue_key, queue_cls, dupefilter_key, idle_before_close)
+        return cls(server, persist, queue_key, queue_cls, dupefilter_key, dupefilter_cls, idle_before_close)
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -58,7 +60,7 @@ class Scheduler(object):
     def open(self, spider):
         self.spider = spider
         self.queue = self.queue_cls(self.server, spider, self.queue_key)
-        self.df = RFPDupeFilter(self.server, self.dupefilter_key % {'spider': spider.name})
+        self.df = self.dupefilter_cls(self.server, self.dupefilter_key % {'spider': spider.name})
         if self.idle_before_close < 0:
             self.idle_before_close = 0
         # notice if there are requests already in the queue to resume the crawl
