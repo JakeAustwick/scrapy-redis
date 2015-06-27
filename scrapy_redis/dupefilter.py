@@ -50,7 +50,11 @@ class RedisBloomDupeFilter(BaseDupeFilter):
     """Redis backed bloomfilter duplication filter"""
  
     def __init__(self, server, key):
-        self.filter = pyreBloom.pyreBloom(key, 10000000, 0.00001)
+        connection_details = server.connection_pool.connection_kwargs
+        host, port = connection_details['host'], connection_details['port']
+        password, db = connection_details['password'], connection_details['db']
+
+        self.filter = pyreBloom.pyreBloom(key, 10000000, 0.00001, host=host, port=port, password=password, db=db)
  
     @classmethod
     def from_settings(cls, settings):
